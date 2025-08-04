@@ -156,12 +156,12 @@ export default function App() {
         </div>
       </div>
 
-      <div className="objectives-banner">
-        <span>Obj #1: WCAG Compliant</span>
-        <span>Obj #2: React/API Integration</span>
-        <span>Obj #3: Figma Collaboration</span>
-        <span>Obj #4: Git Workflow</span>
-        <span>Obj #5: Backend Integration</span>
+       <div className="objectives-banner" style={{ marginBottom: '1rem', fontWeight: 'bold' }}>
+       <span style={{ marginRight: '1rem' }}>🎯 WCAG Compliant</span>
+       <span style={{ marginRight: '1rem' }}>⚛️ React/API Integration</span>
+       <span style={{ marginRight: '1rem' }}>⚛️ Figma Collaboration</span>
+       <span style={{ marginRight: '1rem' }}>⚛️ Git Workflow</span>
+       <span style={{ marginRight: '1rem' }}>⚛️ Backend Integration</span>
       </div>
 
       {isLoading ? (
