@@ -94,7 +94,6 @@ export default function App() {
       return updatedJobs;
     });
 
-    // Optionally send a PATCH request here if you want to persist status changes
   };
 
   const addSampleJob = async () => {
@@ -105,7 +104,7 @@ export default function App() {
     };
 
     try {
-      const res = await axios.post(`${API_BASE}/jobs`, newJob);
+      const res = await axios.post('https://job-tracker-dashboard-cuhe.onrender.com/jobs', newJob);
       setJobs(prev => [...prev, res.data]);
       console.log('Job saved to backend');
     } catch (error) {
@@ -115,7 +114,7 @@ export default function App() {
 
   const deleteJob = async (_id: string) => {
     try {
-      await axios.delete(`${API_BASE}/jobs/${_id}`);
+      await axios.delete(`https://job-tracker-dashboard-cuhe.onrender.com/jobs/${_id}`);
       setJobs(jobs => jobs.filter(job => job._id !== _id));
     } catch (error) {
       console.error('Failed to delete job:', error);
