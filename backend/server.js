@@ -23,6 +23,11 @@ const jobSchema = new mongoose.Schema({
 });
 const Job = mongoose.model('Job', jobSchema);
 
+app.get('/', (req, res) => {
+  res.send('Job Tracker Backend is Running');
+});
+
+
 // Routes
 app.get('/jobs', async (req, res) => {
   const jobs = await Job.find();
@@ -42,3 +47,13 @@ console.log('POST /jobs body:', req.body);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+app.delete('/jobs/:id', async (req, res) => {
+  try {
+    const job = await Job.findByIdAndDelete(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    res.status(200).json({ message: 'Job deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});

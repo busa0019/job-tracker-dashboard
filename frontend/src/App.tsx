@@ -25,11 +25,13 @@ import './App.css';
 type Status = 'Applied' | 'Interviewing' | 'Offer' | 'Rejected';
 
 type Job = {
-  id: string;
+  _id: string;
   title: string;
   company: string;
   status: Status;
 };
+
+const API_BASE = 'https://job-tracker-dashboard-cuhe.onrender.com';
 
 export default function App() {
   const gitActivity = logGitActivity(3, 5, 4);
@@ -39,39 +41,26 @@ export default function App() {
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [designFidelity, setDesignFidelity] = useState(0);
   const [backendStatus, setBackendStatus] = useState('');
- 
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/jobs');
+        const response = await axios.get(`${API_BASE}/jobs`);
         setJobs(response.data);
+        setBackendStatus('online');
       } catch (err) {
         console.error('Failed to fetch jobs:', err);
-      }
-    };
-
-    fetchJobs();
-    
-    // Simulate design fidelity progress
-    const interval = setInterval(() => {
-      setDesignFidelity(prev => Math.min(prev + 10, 100));
-    }, 1000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const checkBackendHealth = async () => {
-      try {
-        const res = await axios.get('http://localhost:5000/health');
-        setBackendStatus(res.data.status);
-      } catch {
         setBackendStatus('offline');
       }
     };
 
-    checkBackendHealth();
+    fetchJobs();
+
+    const interval = setInterval(() => {
+      setDesignFidelity(prev => Math.min(prev + 10, 100));
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const sensors = useSensors(
@@ -91,62 +80,56 @@ export default function App() {
 
     if (!over) return;
 
-    const activeJob = jobs.find(job => job.id === active.id);
-    const overJob = jobs.find(job => job.id === over.id);
+    const activeJob = jobs.find(job => job._id === active.id);
+    const overJob = jobs.find(job => job._id === over.id);
 
     if (!activeJob || !overJob || active.id === over.id) return;
 
     const newStatus = over.data?.current?.status as Status || activeJob.status;
 
     setJobs(jobs => {
-      const jobIndex = jobs.findIndex(j => j.id === active.id);
-      const updatedJob = { ...jobs[jobIndex], status: newStatus };
-      
-      return jobs.map(job => 
-        job.id === active.id ? updatedJob : job
+      const updatedJobs = jobs.map(job =>
+        job._id === active.id ? { ...job, status: newStatus } : job
       );
+      return updatedJobs;
     });
+
+    // Optionally send a PATCH request here if you want to persist status changes
   };
 
   const addSampleJob = async () => {
     const newJob = {
-      id: `job-${Date.now()}`,
       title: `Developer ${jobs.length + 1}`,
       company: `Company ${jobs.length + 1}`,
       status: 'Applied' as Status
     };
-    
-    setJobs([...jobs, newJob]);
-    
+
     try {
-      await axios.post('http://localhost:5000/jobs', newJob);
+      const res = await axios.post(`${API_BASE}/jobs`, newJob);
+      setJobs(prev => [...prev, res.data]);
       console.log('Job saved to backend');
     } catch (error) {
       console.error('Failed to save job:', error);
     }
   };
 
-  const deleteJob = async (id: string) => {
+  const deleteJob = async (_id: string) => {
     try {
-      await axios.delete(`http://localhost:5000/jobs/${id}`);
-      setJobs(jobs.filter(job => job.id !== id));
+      await axios.delete(`${API_BASE}/jobs/${_id}`);
+      setJobs(jobs => jobs.filter(job => job._id !== _id));
     } catch (error) {
       console.error('Failed to delete job:', error);
     }
   };
 
-  const activeJob = activeId ? jobs.find(job => job.id === activeId) : null;
+  const activeJob = activeId ? jobs.find(job => job._id === activeId) : null;
 
   return (
     <div className="app-container">
       <div className="header">
         <h1>Job Tracker</h1>
         <div>
-          <button 
-            onClick={addSampleJob}
-            className="add-job-btn"
-            aria-label="Add sample job"
-          >
+          <button onClick={addSampleJob} className="add-job-btn" aria-label="Add sample job">
             <FontAwesomeIcon icon={faPlus} />
             Add Sample Job
           </button>
@@ -156,32 +139,20 @@ export default function App() {
           </div>
         </div>
       </div>
-      
-      <DndContext
-        sensors={sensors}
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-      >
+
+      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div className="columns-container">
           {(['Applied', 'Interviewing', 'Offer', 'Rejected'] as Status[]).map((status) => (
-            <div
-              key={status}
-              className="column"
-              data-status={status}
-            >
+            <div key={status} className="column" data-status={status}>
               <h2>{status}</h2>
               <SortableContext 
-                items={jobs.filter(j => j.status === status).map(j => j.id)} 
+                items={jobs.filter(j => j.status === status).map(j => j._id)} 
                 strategy={verticalListSortingStrategy}
               >
                 {jobs
                   .filter(job => job.status === status)
                   .map(job => (
-                    <SortableJobItem 
-                      key={job.id} 
-                      job={job} 
-                      onDelete={deleteJob} 
-                    />
+                    <SortableJobItem key={job._id} job={job} onDelete={deleteJob} />
                   ))}
               </SortableContext>
             </div>
@@ -210,7 +181,7 @@ function SortableJobItem({ job, onDelete }: { job: Job; onDelete: (id: string) =
     setNodeRef,
     transform,
     transition,
-  } = useSortable({ id: job.id });
+  } = useSortable({ id: job._id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -230,7 +201,7 @@ function SortableJobItem({ job, onDelete }: { job: Job; onDelete: (id: string) =
       <h3>{job.title}</h3>
       <p>{job.company}</p>
       <button 
-        onClick={() => onDelete(job.id)}
+        onClick={() => onDelete(job._id)}
         className="delete-btn"
         aria-label={`Delete ${job.title} position`}
       >
