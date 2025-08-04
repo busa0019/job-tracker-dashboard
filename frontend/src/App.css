@@ -117,6 +117,11 @@ h1 {
   outline-offset: 2px;
 }
 
+.delete-btn:focus, .add-job-btn:focus {
+  outline: 3px solid #4361ee;
+  outline-offset: 2px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .columns-container {
