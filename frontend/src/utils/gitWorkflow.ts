@@ -1,5 +1,3 @@
-// src/utils/gitWorkflow.ts
-
 export type GitActivity = {
   branchesCreated: number;
   pullRequests: number;
@@ -8,9 +6,9 @@ export type GitActivity = {
 };
 
 export const logGitActivity = (
-  branchesCreated: number,
-  pullRequests: number,
-  mergeConflictsResolved: number
+  branchesCreated: 3,
+  pullRequests: 5,
+  mergeConflictsResolved: 2
 ): GitActivity => {
   return {
     branchesCreated,

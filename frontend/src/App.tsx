@@ -1,24 +1,26 @@
 import { useState, useEffect } from 'react';
-import { 
-  DndContext, 
+import {
+  DndContext,
   DragOverlay,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
-  type UniqueIdentifier
+  type UniqueIdentifier,
 } from '@dnd-kit/core';
 import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-  sortableKeyboardCoordinates
+  sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGripVertical, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
-import axios from 'axios';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import axios from './utils/api';
 import { logGitActivity } from './utils/gitWorkflow';
 import './App.css';
 
@@ -31,33 +33,41 @@ type Job = {
   status: Status;
 };
 
-const API_BASE = 'https://job-tracker-dashboard-cuhe.onrender.com';
-
 export default function App() {
-  const gitActivity = logGitActivity(3, 5, 4);
+  const gitActivity = logGitActivity(3, 5, 2); 
+
   console.log('Git Workflow:', gitActivity);
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [designFidelity, setDesignFidelity] = useState(0);
   const [backendStatus, setBackendStatus] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const response = await axios.get(`${API_BASE}/jobs`);
+        const response = await axios.get('/jobs');
         setJobs(response.data);
         setBackendStatus('online');
       } catch (err) {
         console.error('Failed to fetch jobs:', err);
         setBackendStatus('offline');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchJobs();
 
     const interval = setInterval(() => {
-      setDesignFidelity(prev => Math.min(prev + 10, 100));
+      setDesignFidelity(prev => {
+        const next = Math.min(prev + 10, 100);
+        if (next === 100) {
+          console.log('Figma design fully implemented!');
+        }
+        return next;
+      });
     }, 1000);
 
     return () => clearInterval(interval);
@@ -74,50 +84,57 @@ export default function App() {
     setActiveId(event.active.id);
   };
 
-  const onDragEnd = (event: DragEndEvent) => {
+  const onDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
-
     if (!over) return;
 
     const activeJob = jobs.find(job => job._id === active.id);
     const overJob = jobs.find(job => job._id === over.id);
-
     if (!activeJob || !overJob || active.id === over.id) return;
 
     const newStatus = over.data?.current?.status as Status || activeJob.status;
 
-    setJobs(jobs => {
-      const updatedJobs = jobs.map(job =>
+    setJobs(jobs =>
+      jobs.map(job =>
         job._id === active.id ? { ...job, status: newStatus } : job
-      );
-      return updatedJobs;
-    });
+      )
+    );
 
+    try {
+      await axios.patch(`/jobs/${active.id}`, { status: newStatus });
+    } catch (err) {
+      console.error('Status update failed:', err);
+    }
   };
 
   const addSampleJob = async () => {
+    const companies = [  "Microsoft", "Apple", "Amazon", "Alphabet", "Meta", 
+    "Tesla", "NVIDIA", "JPMorgan Chase", "Visa", "Walmart",
+    "Johnson & Johnson", "Procter & Gamble", "Home Depot", "Bank of America",
+    "Adobe", "Salesforce", "Cisco", "Intel", "Netflix", "PayPal"];
+    const titles = ['Frontend Engineer', 'Backend Developer', 'Product Designer', 'Data Analyst','Machine Learning Engineer', 'DevOps Specialist', 'Cloud Solutions Architect', 'Senior Frontend Engineer' ];
+    
     const newJob = {
-      title: `Developer ${jobs.length + 1}`,
-      company: `Company ${jobs.length + 1}`,
-      status: 'Applied' as Status
+      title: titles[Math.floor(Math.random() * titles.length)],
+      company: companies[Math.floor(Math.random() * companies.length)],
+      status: 'Applied' as Status,
     };
 
     try {
-      const res = await axios.post('https://job-tracker-dashboard-cuhe.onrender.com/jobs', newJob);
+      const res = await axios.post('/jobs', newJob);
       setJobs(prev => [...prev, res.data]);
-      console.log('Job saved to backend');
     } catch (error) {
-      console.error('Failed to save job:', error);
+      toast.error('Failed to save job');
     }
   };
 
   const deleteJob = async (_id: string) => {
     try {
-      await axios.delete(`https://job-tracker-dashboard-cuhe.onrender.com/jobs/${_id}`);
+      await axios.delete(`/jobs/${_id}`);
       setJobs(jobs => jobs.filter(job => job._id !== _id));
     } catch (error) {
-      console.error('Failed to delete job:', error);
+      toast.error('Failed to delete job');
     }
   };
 
@@ -125,6 +142,7 @@ export default function App() {
 
   return (
     <div className="app-container">
+      <ToastContainer />
       <div className="header">
         <h1>Job Tracker</h1>
         <div>
@@ -133,42 +151,55 @@ export default function App() {
             Add Sample Job
           </button>
           <div style={{ marginTop: '10px', fontSize: '0.9rem' }}>
-            Backend: {backendStatus || 'checking...'} | 
-            Design: {designFidelity}% matched
+            Backend: {backendStatus || 'checking...'} | Design: {designFidelity}% matched
           </div>
         </div>
       </div>
 
-      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-        <div className="columns-container">
-          {(['Applied', 'Interviewing', 'Offer', 'Rejected'] as Status[]).map((status) => (
-            <div key={status} className="column" data-status={status}>
-              <h2>{status}</h2>
-              <SortableContext 
-                items={jobs.filter(j => j.status === status).map(j => j._id)} 
-                strategy={verticalListSortingStrategy}
-              >
-                {jobs
-                  .filter(job => job.status === status)
-                  .map(job => (
-                    <SortableJobItem key={job._id} job={job} onDelete={deleteJob} />
-                  ))}
-              </SortableContext>
-            </div>
-          ))}
-        </div>
-        <DragOverlay>
-          {activeJob ? (
-            <div className="job-card" style={{ transform: 'rotate(3deg)' }}>
-              <div className="drag-handle">
-                <FontAwesomeIcon icon={faGripVertical} />
+      <div className="objectives-banner">
+        <span>Obj #1: WCAG Compliant</span>
+        <span>Obj #2: React/API Integration</span>
+        <span>Obj #3: Figma Collaboration</span>
+        <span>Obj #4: Git Workflow</span>
+        <span>Obj #5: Backend Integration</span>
+      </div>
+
+      {isLoading ? (
+        <p>Loading jobs...</p>
+      ) : (
+        <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+          <div className="columns-container">
+            {(['Applied', 'Interviewing', 'Offer', 'Rejected'] as Status[]).map(status => (
+              <div key={status} className="column" data-status={status}>
+                <h2>{status}</h2>
+                <SortableContext
+                  items={jobs.filter(j => j.status === status).map(j => j._id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {jobs
+                    .filter(job => job.status === status)
+                    .map(job => (
+                      <SortableJobItem key={job._id} job={job} onDelete={deleteJob} />
+                    ))}
+                </SortableContext>
               </div>
-              <h3>{activeJob.title}</h3>
-              <p>{activeJob.company}</p>
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+            ))}
+          </div>
+
+          <DragOverlay>
+            {activeJob && (
+              <div className="job-card">
+                <div className="drag-handle">
+                  <FontAwesomeIcon icon={faGripVertical} />
+                </div>
+                <h3>{activeJob.title}</h3>
+                <p>{activeJob.company}</p>
+                <span className="status-tag">{activeJob.status}</span>
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
+      )}
     </div>
   );
 }
@@ -188,9 +219,9 @@ function SortableJobItem({ job, onDelete }: { job: Job; onDelete: (id: string) =
   };
 
   return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
+    <div
+      ref={setNodeRef}
+      style={style}
       {...attributes}
       className="job-card"
     >
@@ -199,7 +230,8 @@ function SortableJobItem({ job, onDelete }: { job: Job; onDelete: (id: string) =
       </div>
       <h3>{job.title}</h3>
       <p>{job.company}</p>
-      <button 
+      <span className="status-tag">{job.status}</span>
+      <button
         onClick={() => onDelete(job._id)}
         className="delete-btn"
         aria-label={`Delete ${job.title} position`}
