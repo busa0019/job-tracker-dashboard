@@ -1,42 +1,129 @@
-#root {
-  max-width: 1280px;
+/* src/App.css */
+:root {
+  --primary: #4361ee;
+  --secondary: #f72585;
+  --light: #f8f9fa;
+  --dark: #212529;
+  --success: #4cc9f0;
+}
+
+body {
+  background-color: var(--light);
+  font-family: 'Segoe UI', sans-serif;
+  color: var(--dark);
+  line-height: 1.6;
+}
+
+.app-container {
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  padding: 20px;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+h1 {
+  color: var(--primary);
+  margin: 0;
+}
+
+.add-job-btn {
+  background: var(--secondary);
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.3s;
+}
+
+.add-job-btn:hover {
+  opacity: 0.9;
+}
+
+.columns-container {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-bottom: 20px;
+}
+
+.column {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  min-width: 280px;
+  flex: 1;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.column h2 {
+  margin-top: 0;
+  color: var(--dark);
+  font-size: 1.2rem;
+  border-bottom: 2px solid var(--light);
+  padding-bottom: 10px;
+}
+
+.job-card {
+  background: white;
+  border-left: 4px solid var(--primary);
+  padding: 15px;
+  margin: 15px 0;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: transform 0.2s;
+}
+
+.job-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.job-card h3 {
+  margin: 8px 0 4px;
+  font-size: 1.1rem;
+}
+
+.job-card p {
+  margin: 0;
+  color: #555;
+}
+
+.drag-handle {
+  color: #777;
+  cursor: grab;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: #ff6b6b;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+/* WCAG Focus States */
+*:focus {
+  outline: 3px solid #4361ee;
+  outline-offset: 2px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .columns-container {
+    flex-direction: column;
   }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
 
-.card {
-  padding: 2em;
-}
 
-.read-the-docs {
-  color: #888;
-}
+

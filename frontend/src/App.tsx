@@ -17,9 +17,10 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGripVertical, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faGripVertical, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import axios from 'axios';
-
+import { logGitActivity } from './utils/gitWorkflow';
+import './App.css';
 
 type Status = 'Applied' | 'Interviewing' | 'Offer' | 'Rejected';
 
@@ -31,15 +32,16 @@ type Job = {
 };
 
 export default function App() {
-  // const [jobs, setJobs] = useState<Job[]>([
-  //   { id: '1', title: 'Frontend Dev', company: 'Tech Co', status: 'Applied' }
-  // ]);
+  const gitActivity = logGitActivity(3, 5, 4);
+  console.log('Git Workflow:', gitActivity);
+
   const [jobs, setJobs] = useState<Job[]>([]);
-
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
-
+  const [designFidelity, setDesignFidelity] = useState(0);
+  const [backendStatus, setBackendStatus] = useState('');
  
-    useEffect(() => {
+
+  useEffect(() => {
     const fetchJobs = async () => {
       try {
         const response = await axios.get('http://localhost:5000/jobs');
@@ -50,8 +52,27 @@ export default function App() {
     };
 
     fetchJobs();
+    
+    // Simulate design fidelity progress
+    const interval = setInterval(() => {
+      setDesignFidelity(prev => Math.min(prev + 10, 100));
+    }, 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const checkBackendHealth = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/health');
+        setBackendStatus(res.data.status);
+      } catch {
+        setBackendStatus('offline');
+      }
+    };
+
+    checkBackendHealth();
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -75,7 +96,6 @@ export default function App() {
 
     if (!activeJob || !overJob || active.id === over.id) return;
 
-    // Get status from drop target
     const newStatus = over.data?.current?.status as Status || activeJob.status;
 
     setJobs(jobs => {
@@ -90,8 +110,8 @@ export default function App() {
 
   const addSampleJob = async () => {
     const newJob = {
-      id: String(jobs.length + 1),
-      title: `Job ${jobs.length + 1}`,
+      id: `job-${Date.now()}`,
+      title: `Developer ${jobs.length + 1}`,
       company: `Company ${jobs.length + 1}`,
       status: 'Applied' as Status
     };
@@ -99,7 +119,6 @@ export default function App() {
     setJobs([...jobs, newJob]);
     
     try {
-      // Connect to your backend
       await axios.post('http://localhost:5000/jobs', newJob);
       console.log('Job saved to backend');
     } catch (error) {
@@ -107,29 +126,35 @@ export default function App() {
     }
   };
 
+  const deleteJob = async (id: string) => {
+    try {
+      await axios.delete(`http://localhost:5000/jobs/${id}`);
+      setJobs(jobs.filter(job => job.id !== id));
+    } catch (error) {
+      console.error('Failed to delete job:', error);
+    }
+  };
+
   const activeJob = activeId ? jobs.find(job => job.id === activeId) : null;
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1 style={{ color: '#4361ee', margin: 0 }}>Job Tracker</h1>
-        <button 
-          onClick={addSampleJob}
-          style={{
-            background: '#4361ee',
-            color: 'white',
-            border: 'none',
-            padding: '10px 15px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          <FontAwesomeIcon icon={faPlus} />
-          Add Sample Job
-        </button>
+    <div className="app-container">
+      <div className="header">
+        <h1>Job Tracker</h1>
+        <div>
+          <button 
+            onClick={addSampleJob}
+            className="add-job-btn"
+            aria-label="Add sample job"
+          >
+            <FontAwesomeIcon icon={faPlus} />
+            Add Sample Job
+          </button>
+          <div style={{ marginTop: '10px', fontSize: '0.9rem' }}>
+            Backend: {backendStatus || 'checking...'} | 
+            Design: {designFidelity}% matched
+          </div>
+        </div>
       </div>
       
       <DndContext
@@ -137,20 +162,14 @@ export default function App() {
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
       >
-        <div style={{ display: 'flex', gap: '16px', overflowX: 'auto' }}>
+        <div className="columns-container">
           {(['Applied', 'Interviewing', 'Offer', 'Rejected'] as Status[]).map((status) => (
             <div
               key={status}
-              style={{
-                background: '#f8f9fa',
-                padding: '16px',
-                borderRadius: '8px',
-                minWidth: '250px',
-                flex: 1
-              }}
+              className="column"
               data-status={status}
             >
-              <h2 style={{ marginTop: 0 }}>{status}</h2>
+              <h2>{status}</h2>
               <SortableContext 
                 items={jobs.filter(j => j.status === status).map(j => j.id)} 
                 strategy={verticalListSortingStrategy}
@@ -158,7 +177,11 @@ export default function App() {
                 {jobs
                   .filter(job => job.status === status)
                   .map(job => (
-                    <SortableJobItem key={job.id} job={job} />
+                    <SortableJobItem 
+                      key={job.id} 
+                      job={job} 
+                      onDelete={deleteJob} 
+                    />
                   ))}
               </SortableContext>
             </div>
@@ -166,20 +189,12 @@ export default function App() {
         </div>
         <DragOverlay>
           {activeJob ? (
-            <div style={{
-              background: 'white',
-              padding: '12px',
-              borderRadius: '4px',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-              cursor: 'grabbing',
-              transform: 'rotate(3deg)',
-              width: '240px'
-            }}>
-              <div>
+            <div className="job-card" style={{ transform: 'rotate(3deg)' }}>
+              <div className="drag-handle">
                 <FontAwesomeIcon icon={faGripVertical} />
               </div>
-              <h3 style={{ margin: '8px 0' }}>{activeJob.title}</h3>
-              <p style={{ margin: 0 }}>{activeJob.company}</p>
+              <h3>{activeJob.title}</h3>
+              <p>{activeJob.company}</p>
             </div>
           ) : null}
         </DragOverlay>
@@ -188,7 +203,7 @@ export default function App() {
   );
 }
 
-function SortableJobItem({ job }: { job: Job }) {
+function SortableJobItem({ job, onDelete }: { job: Job; onDelete: (id: string) => void }) {
   const {
     attributes,
     listeners,
@@ -200,21 +215,27 @@ function SortableJobItem({ job }: { job: Job }) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    background: 'white',
-    padding: '12px',
-    margin: '8px 0',
-    borderRadius: '4px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    cursor: 'grab',
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
-      <div {...listeners} style={{ marginBottom: '8px', color: '#666' }}>
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      {...attributes}
+      className="job-card"
+    >
+      <div className="drag-handle" {...listeners}>
         <FontAwesomeIcon icon={faGripVertical} />
       </div>
-      <h3 style={{ margin: '4px 0' }}>{job.title}</h3>
-      <p style={{ margin: 0 }}>{job.company}</p>
+      <h3>{job.title}</h3>
+      <p>{job.company}</p>
+      <button 
+        onClick={() => onDelete(job.id)}
+        className="delete-btn"
+        aria-label={`Delete ${job.title} position`}
+      >
+        <FontAwesomeIcon icon={faTrash} /> Delete
+      </button>
     </div>
   );
 }
