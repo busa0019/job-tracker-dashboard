@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   DndContext, 
   DragOverlay,
@@ -20,6 +20,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGripVertical, faPlus } from '@fortawesome/free-solid-svg-icons';
 import axios from 'axios';
 
+
 type Status = 'Applied' | 'Interviewing' | 'Offer' | 'Rejected';
 
 type Job = {
@@ -30,10 +31,27 @@ type Job = {
 };
 
 export default function App() {
-  const [jobs, setJobs] = useState<Job[]>([
-    { id: '1', title: 'Frontend Dev', company: 'Tech Co', status: 'Applied' }
-  ]);
+  // const [jobs, setJobs] = useState<Job[]>([
+  //   { id: '1', title: 'Frontend Dev', company: 'Tech Co', status: 'Applied' }
+  // ]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+
+ 
+    useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const response = await axios.get('http://localhost:5000/jobs');
+        setJobs(response.data);
+      } catch (err) {
+        console.error('Failed to fetch jobs:', err);
+      }
+    };
+
+    fetchJobs();
+  }, []);
+
 
   const sensors = useSensors(
     useSensor(PointerSensor),
